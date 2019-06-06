@@ -98,7 +98,7 @@ def strain(orientation):
     # print('Mo: ', Mo)
     # print('orientation: ', orientation)
     # print('critical orientation: ', critical_orientation)
-    delta_t = (cd * ((float(k2) / k1) ** 2)) / (Mo * (1 - np.exp( -5 * ((float(orientation) / critical_orientation) ** 4))))
+    delta_t = (cd * ((float(k2) / k1) ** 2)) / (0.5 * mu(Tm) * (b ** 2)) * (Mo * (1 - np.exp( -5 * ((float(orientation) / critical_orientation) ** 4))))
     global current_strain
     current_strain +=  strain_rate * delta_t
     # print("current_strain: ", current_strain)
@@ -120,25 +120,20 @@ def update_state(P_prev, orientation_current):
     P_new = dislocation_energy(P_prev, orientation_current)
     new_state = orientation_current
     # print("Energy Difference", P_new - P_cr)
+    global P_max
+    P_max = np.max(dislocation_energies)
+    # print("maximum DisDen: ", P_max)
     choice = 0
     if P_new < P_cr :
         new_state = orientation_current
     elif P_new >= P_cr:
+        # print("P_new, P_max: ", P_new, P_max)
         nucleation_probability = P_new / P_max
-        # choice = np.random.choice(2, 1, p = [1 - nucleation_probability, nucleation_probability])
-        P_nucleate = int(10.0 * nucleation_probability)
-        # print('P_nucleate: ', P_nucleate)
-        choice_array = [1 for i in range(P_nucleate)]
-        # num_zeroes = 10 - len(choice_array)
-        for j in range(10):
-            if (j + 1 )> P_nucleate:
-                choice_array += [0]
-        # print(choice_array)
-        # choice_array = [0, 1, 0, 0, 1, 1, 0, 1, 1, 1]
-        random_index = np.random.randint(0, 10)
-        # print(random_index)
-        choice = choice_array[random_index]
-        if choice == 1 :
+        random_number = np.random.randint(0, 100)
+        random_number = float(random_number) / 100
+        # print("Random Number, Nucleation Prob", random_number, nucleation_probability)
+        if random_number > nucleation_probability:
+            choice = 1
             new_state = np.random.randint(2, states)
 
     return choice, new_state
@@ -264,7 +259,15 @@ def main():
                     else:
                         dislocation_energies[i][j] = dislocation_energy(dislocation_energies[i][j], grid[i][j])
                     cell_strain[i][j] = strain(grid[i][j])
+                else:
+                    dislocation_energies[i][j] = dislocation_energy(dislocation_energies[i][j], grid[i][j])
+                    cell_strain[i][j] = strain(grid[i][j])
         
+        unq, cnts = np.unique(dislocation_energies, return_counts=True)
+        unq_array = dict(zip(unq, cnts))
+
+        print("Dslctn dnsts: ", unq_array)
+
         difference_matrix = grid - prev_grid
         # N_unchanged_grains = difference_matrix.count(0)
         unique, counts = np.unique(difference_matrix, return_counts=True)
