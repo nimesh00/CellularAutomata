@@ -3,6 +3,11 @@
     UNCOMMENT BLOCK 1 and COMMENT BLOCK 2: Live updations after each iterations. Slower(can be optimized)
     Enter the correct values of the constants
 '''
+'''
+Moore's neighbourhood used
+Dislocation Density approach instead of Grain Boundary Velocity approach for determining nucleation
+
+'''
 
 import numpy as np
 import random
@@ -76,6 +81,8 @@ k = 0
 
 grid = np.random.randint(2, states, size = (n,n))
 dislocation_energies = [[P_initial for l in range(n)] for m in range(n)]
+dynamic_recrystallization_number = np.zeros((n, n))
+distance_n = np.zeros((n, n))
 cell_strain = np.zeros((n, n))
 
 
@@ -132,12 +139,41 @@ def update_state(P_prev, orientation_current):
         random_number = np.random.randint(0, 100)
         random_number = float(random_number) / 100
         # print("Random Number, Nucleation Prob", random_number, nucleation_probability)
-        if random_number > nucleation_probability:
+        if random_number < nucleation_probability:
             choice = 1
             new_state = np.random.randint(2, states)
 
     return choice, new_state
     
+
+def propagate_grain_boundary(y, x):
+    neighbour_indices = [[y - 1, x - 1], [y - 1, x], [y - 1, x + 1],
+                        [y , x - 1], [y , x], [y , x + 1],
+                        [y + 1, x - 1], [y + 1, x], [y + 1, x + 1]]
+    favoured_indices = neighbour_indices[0]
+    min_delta_p = dislocation_energies[y][x] - dislocation_energies[favoured_indices[0]][favoured_indices[1]]
+    for indices in neighbour_indices:
+        if dynamic_recrystallization_number[indices[0]][indices[1]] == 1:
+            delta_p = dislocation_energies[y][x] - dislocation_energies[indices[0]][indices[1]]
+            if delta_p < min_delta_p:
+                min_delta_p = delta_p
+                favoured_indices = indices
+
+    P_max = np.max(dislocation_energies)
+
+    P_curr = dislocation_energies[y][x]
+
+    nucleation_probability = P_curr / P_max
+
+    random_number = np.random.randint(0, 99)
+    random_number = float(random_number) / 100
+
+    if random_number < nucleation_probability:
+        grid[y][x] = grid[favoured_indices[0]][favoured_indices[1]]
+        dislocation_energies[y][x] = 0
+    else:
+        dislocation_energies[y][x] = dislocation_energy(dislocation_energies[y][x], grid[y][x])
+
 
 def update_grid_state(plt, fig , ax, cmap, bounds):
     N = states
@@ -158,10 +194,6 @@ def update_grid_state(plt, fig , ax, cmap, bounds):
     scat = ax.scatter(x,y,c=tag,cmap=cmap,     norm=norm)
 
     return scat
-
-
-# def updating_plot(pw, x, y):
-#     pw = pg.plot(x, y, pen = 'r')
 
 def check_mat_for_zero(matrix):
     height, width = matrix.shape
@@ -235,33 +267,45 @@ def main():
     
     while (k < iterations):
         prev_grid = copy.copy(grid)
-        number_border_elements = 0
+        # number_border_elements = 0
         for i in range(n):
             for j in range(n):
+
+                if dynamic_recrystallization_number[i][j] == 1:
+                    continue
+
+                # Moore's neighbourhood
                 neighbour_indices = [[i - 1, j - 1], [i - 1, j], [i - 1, j + 1],
                                      [i , j - 1], [i , j], [i , j + 1],
                                      [i + 1, j - 1], [i + 1, j], [i + 1, j + 1]]
                 # print(neighbour_indices)
                 border = False
+                near_nucleus = False
                 for indices in neighbour_indices:
                     if (indices[0] < 0) or (indices[1] < 0) or (indices[0] > n - 1) or (indices[1] > n - 1):
                         continue
                     # print('Cell Value, Neighbour Value : ', grid[i][j], grid[indices[0]][indices[1]])
                     if grid[i][j] != grid[indices[0]][indices[1]]:
                         border = True
+                    if dynamic_recrystallization_number[indices[0]][indices[1]] == 1:
+                        near_nucleus = True
                 # if border is False:
                 #     number_border_elements += 1
                 #     print(number_border_elements)
                 if border is True:
-                    ret, grid[i][j] = update_state(dislocation_energies[i][j], grid[i][j])
-                    if ret == 1:
-                        dislocation_energies[i][j] = P_initial
+                    if near_nucleus is True:
+                        propagate_grain_boundary(i, j)
                     else:
-                        dislocation_energies[i][j] = dislocation_energy(dislocation_energies[i][j], grid[i][j])
-                    cell_strain[i][j] = strain(grid[i][j])
+                        ret, grid[i][j] = update_state(dislocation_energies[i][j], grid[i][j])
+                        if ret == 1:
+                            dislocation_energies[i][j] = 0
+                            dynamic_recrystallization_number[i][j] = 1
+                            distance_n[i][j] = 0
+                        else:
+                            dislocation_energies[i][j] = dislocation_energy(dislocation_energies[i][j], grid[i][j])
                 else:
                     dislocation_energies[i][j] = dislocation_energy(dislocation_energies[i][j], grid[i][j])
-                    cell_strain[i][j] = strain(grid[i][j])
+                cell_strain[i][j] = strain(grid[i][j])
         
         unq, cnts = np.unique(dislocation_energies, return_counts=True)
         unq_array = dict(zip(unq, cnts))
