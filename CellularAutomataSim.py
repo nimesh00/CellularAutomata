@@ -18,7 +18,7 @@ import copy
 import math
 
 states = 10
-n = 200
+n = 100
 iterations = 30
 strain_rate = 0.1
 P_initial = 6.022 * (10 ** 14)
@@ -74,13 +74,13 @@ strains = [0.017232,
 1.11972,
 1.19712]
 
-strains = interpolate_array(strains)
+# strains = interpolate_array(strains)
 iterations = len(strains)
 global k
 k = 0
 
 grid = np.random.randint(2, states, size = (n,n))
-dislocation_energies = [[P_initial for l in range(n)] for m in range(n)]
+dislocation_densities = [[P_initial for l in range(n)] for m in range(n)]
 dynamic_recrystallization_number = np.zeros((n, n))
 distance_n = np.zeros((n, n))
 cell_strain = np.zeros((n, n))
@@ -91,9 +91,9 @@ def mu(temp):
     return mu
 
 def simulated_stress():
-    # average_dislocation_energy = np.mean(dislocation_energies)
+    # average_dislocation_energy = np.mean(dislocation_densities)
     global total_grains
-    average_dislocation_energy = (np.mean(dislocation_energies) * n * n + P_initial * new_grains) / total_grains
+    average_dislocation_energy = (np.mean(dislocation_densities) * n * n + P_initial * new_grains) / total_grains
     simulated_stress = alpha * mu(Current_Temp) * b * np.sqrt(average_dislocation_energy)
     return simulated_stress
 
@@ -105,7 +105,7 @@ def strain(orientation):
     # print('Mo: ', Mo)
     # print('orientation: ', orientation)
     # print('critical orientation: ', critical_orientation)
-    delta_t = (cd * ((float(k2) / k1) ** 2)) / (0.5 * mu(Tm) * (b ** 2)) * (Mo * (1 - np.exp( -5 * ((float(orientation) / critical_orientation) ** 4))))
+    delta_t = (cd * ((float(k2) / k1) ** 2)) / (0.5 * mu(Current_Temp) * (b ** 2)) * (Mo * (1 - np.exp( -5 * ((float(orientation) / critical_orientation) ** 4))))
     global current_strain
     current_strain +=  strain_rate * delta_t
     # print("current_strain: ", current_strain)
@@ -128,7 +128,7 @@ def update_state(P_prev, orientation_current):
     new_state = orientation_current
     # print("Energy Difference", P_new - P_cr)
     global P_max
-    P_max = np.max(dislocation_energies)
+    P_max = np.max(dislocation_densities)
     # print("maximum DisDen: ", P_max)
     choice = 0
     if P_new < P_cr :
@@ -148,20 +148,28 @@ def update_state(P_prev, orientation_current):
 
 def propagate_grain_boundary(y, x):
     neighbour_indices = [[y - 1, x - 1], [y - 1, x], [y - 1, x + 1],
-                        [y , x - 1], [y , x], [y , x + 1],
+                        [y , x - 1], [y , x + 1],
                         [y + 1, x - 1], [y + 1, x], [y + 1, x + 1]]
     favoured_indices = neighbour_indices[0]
-    min_delta_p = dislocation_energies[y][x] - dislocation_energies[favoured_indices[0]][favoured_indices[1]]
+    found_nucleus = False
+    min_delta_p = abs(dislocation_densities[y][x] - dislocation_densities[favoured_indices[0]][favoured_indices[1]])
     for indices in neighbour_indices:
+        if (indices[0] < 0) or (indices[1] < 0) or (indices[0] > n - 1) or (indices[1] > n - 1):
+            continue
+        
         if dynamic_recrystallization_number[indices[0]][indices[1]] == 1:
-            delta_p = dislocation_energies[y][x] - dislocation_energies[indices[0]][indices[1]]
+            found_nucleus = True
+            delta_p = abs(dislocation_densities[y][x] - dislocation_densities[indices[0]][indices[1]])
             if delta_p < min_delta_p:
                 min_delta_p = delta_p
                 favoured_indices = indices
 
-    P_max = np.max(dislocation_energies)
+    if found_nucleus is False:
+        return
 
-    P_curr = dislocation_energies[y][x]
+    P_max = np.max(dislocation_densities)
+
+    P_curr = dislocation_densities[y][x]
 
     nucleation_probability = P_curr / P_max
 
@@ -170,9 +178,10 @@ def propagate_grain_boundary(y, x):
 
     if random_number < nucleation_probability:
         grid[y][x] = grid[favoured_indices[0]][favoured_indices[1]]
-        dislocation_energies[y][x] = 0
+        dynamic_recrystallization_number[y][x] = 1
+        dislocation_densities[y][x] = 0
     else:
-        dislocation_energies[y][x] = dislocation_energy(dislocation_energies[y][x], grid[y][x])
+        dislocation_densities[y][x] = dislocation_energy(dislocation_densities[y][x], grid[y][x])
 
 
 def update_grid_state(plt, fig , ax, cmap, bounds):
@@ -267,16 +276,14 @@ def main():
     
     while (k < iterations):
         prev_grid = copy.copy(grid)
-        # number_border_elements = 0
+        number_border_elements = 0
         for i in range(n):
             for j in range(n):
-
                 if dynamic_recrystallization_number[i][j] == 1:
                     continue
-
                 # Moore's neighbourhood
                 neighbour_indices = [[i - 1, j - 1], [i - 1, j], [i - 1, j + 1],
-                                     [i , j - 1], [i , j], [i , j + 1],
+                                     [i , j - 1], [i , j + 1],
                                      [i + 1, j - 1], [i + 1, j], [i + 1, j + 1]]
                 # print(neighbour_indices)
                 border = False
@@ -287,30 +294,32 @@ def main():
                     # print('Cell Value, Neighbour Value : ', grid[i][j], grid[indices[0]][indices[1]])
                     if grid[i][j] != grid[indices[0]][indices[1]]:
                         border = True
-                    if dynamic_recrystallization_number[indices[0]][indices[1]] == 1:
-                        near_nucleus = True
-                # if border is False:
-                #     number_border_elements += 1
-                #     print(number_border_elements)
+                    # if dynamic_recrystallization_number[indices[0]][indices[1]] == 1:
+                    #     near_nucleus = True
+                if border is False:
+                    number_border_elements += 1
+                    print("border is false: ", number_border_elements)
                 if border is True:
                     if near_nucleus is True:
+                        print("Propagating ", i, j)
                         propagate_grain_boundary(i, j)
                     else:
-                        ret, grid[i][j] = update_state(dislocation_energies[i][j], grid[i][j])
+                        ret, grid[i][j] = update_state(dislocation_densities[i][j], grid[i][j])
                         if ret == 1:
-                            dislocation_energies[i][j] = 0
+                            dislocation_densities[i][j] = 0
                             dynamic_recrystallization_number[i][j] = 1
-                            distance_n[i][j] = 0
                         else:
-                            dislocation_energies[i][j] = dislocation_energy(dislocation_energies[i][j], grid[i][j])
+                            dislocation_densities[i][j] = dislocation_energy(dislocation_densities[i][j], grid[i][j])
                 else:
-                    dislocation_energies[i][j] = dislocation_energy(dislocation_energies[i][j], grid[i][j])
+                    # print("Not at border", i, j)
+                    dislocation_densities[i][j] = dislocation_energy(dislocation_densities[i][j], grid[i][j])
                 cell_strain[i][j] = strain(grid[i][j])
         
-        unq, cnts = np.unique(dislocation_energies, return_counts=True)
+        unq, cnts = np.unique(dynamic_recrystallization_number, return_counts=True)
         unq_array = dict(zip(unq, cnts))
 
-        print("Dslctn dnsts: ", unq_array)
+        # print("Dslctn dnsts: ", unq_array)
+        print("Dynamic Recrys: ", unq_array)
 
         difference_matrix = grid - prev_grid
         # N_unchanged_grains = difference_matrix.count(0)
@@ -343,22 +352,22 @@ def main():
         # print("True Stress: ", true_stress)
         print("Iteration",k, "completed")
         # print(grid)
-        # print(dislocation_energies)
+        # print(dislocation_densities)
         # pw.plot(true_strain, true_stress, pen='r')
         k += 1
         # print(grid)
         # BLOCK 1 START
         
-        # update_grid_state(plt, fig, ax[0], cmap, bounds)
-        # ax[1].plot(true_strain, true_stress, 'b-')
-        # ax[2].plot(true_strain, xDrx, 'r-')
-        # plt.pause(0.01)
+        update_grid_state(plt, fig, ax[0], cmap, bounds)
+        ax[1].plot(true_strain, true_stress, 'b-')
+        ax[2].plot(true_strain, xDrx, 'r-')
+        plt.pause(0.01)
         
         # BLOCK 1 END
     # BLOCK 2 START
-    update_grid_state(plt, fig, ax[0], cmap, bounds)
-    ax[1].plot(true_strain, true_stress, 'b-')
-    ax[2].plot(true_strain, xDrx, 'r-')
+    # update_grid_state(plt, fig, ax[0], cmap, bounds)
+    # ax[1].plot(true_strain, true_stress, 'b-')
+    # ax[2].plot(true_strain, xDrx, 'r-')
     #BLOCK 2 END
     plt.show()
 
