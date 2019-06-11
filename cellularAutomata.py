@@ -12,8 +12,8 @@ import time
 import copy
 import math
 
-states = 10
-n = 150
+states = 20
+n = 100
 iterations = 30
 strain_rate = 0.01
 P_initial = 6.022 * (10 ** 14)
@@ -142,36 +142,41 @@ def update_state(P_prev, orientation_current, state_current):
     return choice, new_state
 
 def propagateGrainBoundary(i, j):
-    #m moore's neighbourhood
+    # moore's neighbourhood
     # neighbour_indices = [[i - 1, j - 1], [i - 1, j], [i - 1, j + 1],
     #                     [i, j - 1],                      [i, j + 1],
     #                     [i + 1, j - 1], [i + 1, j], [i + 1, j + 1]]
     
     # von-neuman neighbourhood
     neighbour_indices = [[i - 1, j], [i, j - 1], [i, j + 1], [i + 1, j]]
-    favoured_indices = neighbour_indices[0]
+    favoured_indices = [0, 0]
     found_nucleus = False
-    min_delta_p = abs(dislocation_densities[i][j] - dislocation_densities[favoured_indices[0]][favoured_indices[1]])
+    min_p_neighbour = np.max(dislocation_densities)
     for indices in neighbour_indices:
         if (indices[0] < 0) or (indices[1] < 0) or (indices[0] > n - 1) or (indices[1] > n - 1):
             continue
         
         if dynamic_recrystallization_number[indices[0]][indices[1]] == 1:
             found_nucleus = True
-            delta_p = abs(dislocation_densities[i][j] - dislocation_densities[indices[0]][indices[1]])
-            if delta_p < min_delta_p:
-                min_delta_p = delta_p
+            # delta_p = abs(dislocation_densities[i][j] - dislocation_densities[indices[0]][indices[1]])
+            p_neighbour = dislocation_densities[indices[0]][indices[1]]
+            if p_neighbour < min_p_neighbour:
+                min_p_neighbour = p_neighbour
                 favoured_indices = indices
 
     if found_nucleus is False:
-        return
+        return 0, grid[i][j]
+
+    # print(i, j, " choosing: ", favoured_indices)
+
     stored_deformation_energy = 0.5 * dislocation_densities[i][j] * mu(Current_Temp) * (b ** 2)
     delta_orientation = abs(orientation[i][j] - orientation[favoured_indices[0]][favoured_indices[1]])
-    current_mobility = mobility(delta_orientation)
-    vel = current_mobility * stored_deformation_energy
-    vel_max = current_mobility * (0.5 * mu(Current_Temp) * (b ** 2)) * ((k1 / k2) ** 2)
-    nucleation_probability = vel / vel_max
-    print("nucleation P: ", nucleation_probability)
+    # current_mobility = mobility(delta_orientation)
+    # vel = current_mobility * stored_deformation_energy
+    # vel_max = current_mobility * (0.5 * mu(Current_Temp) * (b ** 2)) * ((k1 / k2) ** 2)
+    # nucleation_probability = vel / vel_max
+    nucleation_probability = dislocation_densities[i][j] * ((float(k2) / k1) ** 2)
+    # print("nucleation P: ", nucleation_probability)
     random_number = np.random.random()
     choice = 0
     if random_number <= nucleation_probability:
@@ -282,6 +287,8 @@ def cell_on_border(i, j):
         # print('Cell Value, Neighbour Value : ', grid[i][j], grid[indices[0]][indices[1]])
         if grid[i][j] != grid[indices[0]][indices[1]]:
             border_grid[i][j] = 1
+            if dynamic_recrystallization_number[i][j] == 1:
+                border_grid[i][j] = 0
             return True
     return False
 
@@ -333,7 +340,7 @@ def main():
                 cell_on_border(i, j)
                 if dislocation_densities[i][j] >= P_cr:
                     if cell_on_border(i, j):
-                        print("cell on border: ", i ,j)
+                        # print("cell on border: ", i ,j)
                         if near_recrystallized_cell(i, j) and dynamic_recrystallization_number[i][j] == 0:
                             ret, grid[i][j] = propagateGrainBoundary(i, j)
                         else:
@@ -347,6 +354,10 @@ def main():
                     else:
                         if near_recrystallized_cell(i, j) and dynamic_recrystallization_number[i][j] == 0:
                             ret, grid[i][j] = propagateGrainBoundary(i, j)
+                            if ret == 1:
+                                dislocation_densities[i][j] = P_initial
+                                orientation[i][j] = state_to_orientation[grid[i][j]]
+                                dynamic_recrystallization_number[i][j] = 1
                         else:
                             dislocation_densities[i][j] = dislocation_energy(dislocation_densities[i][j], orientation[i][j])
                 else:
@@ -372,7 +383,7 @@ def main():
         
         total_grains = N_c
 
-        print("Total Grains: ", total_grains)
+        # print("Total Grains: ", total_grains)
         
         xDrx = xDrx + [float(N_r) / N_c]
         # print(xDrx)
