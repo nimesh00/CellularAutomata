@@ -215,7 +215,7 @@ def update_grid_state(plt, fig , ax, cmap, bounds):
         for j in range(n):
             x[i*n + j] = i
             y[i*n + j] = j
-            tag[i*n + j] = border_grid[i][j]
+            tag[i*n + j] = grid[i][j]
     
     scat = ax.scatter(x,y,c=tag,cmap=cmap,     norm=norm)
 
@@ -407,17 +407,17 @@ def main():
                     if cell_on_border(i, j):
                         # print("cell on border: ", i ,j)
                         if (dynamic_recrystallization_number[i][j] == 0) and near_recrystallized_cell(i, j):
-                            # counter_propagate1 += 1
-                            ret = propagateGrainBoundary(i, j)
+                            counter_propagate1 += 1
+                            # ret = propagateGrainBoundary(i, j)
                         else:
                             ret = update_cell_state(i, j)
 
                         if ret != 1:
                             dislocation_densities[i][j] = dislocation_energy(dislocation_densities[i][j], orientation[i][j])
                     else:
-                        counter_propagate2 += 1
                         if (dynamic_recrystallization_number[i][j] == 0) and near_recrystallized_cell(i, j):
-                            ret, propagateGrainBoundary(i, j)
+                            counter_propagate2 += 1
+                            ret = propagateGrainBoundary(i, j)
                         else:
                             dislocation_densities[i][j] = dislocation_energy(dislocation_densities[i][j], orientation[i][j])
                 else:
