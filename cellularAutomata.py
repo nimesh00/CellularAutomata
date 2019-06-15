@@ -393,7 +393,7 @@ def main():
     N_c = n * n
     N_r = 0
     N_unchanged_grains = n * n
-    
+    ret = 0
     while (k < iterations):
         prev_grid = copy.copy(grid)
         counter_propagate1 = 0
@@ -407,17 +407,20 @@ def main():
                     if cell_on_border(i, j):
                         # print("cell on border: ", i ,j)
                         if (dynamic_recrystallization_number[i][j] == 0) and near_recrystallized_cell(i, j):
-                            counter_propagate1 += 1
-                            # ret = propagateGrainBoundary(i, j)
+                            # counter_propagate2 += 1
+                            ret = propagateGrainBoundary(i, j)
                         else:
-                            ret = update_cell_state(i, j)
+                            # ret = update_cell_state(i, j)
+                            counter_propagate2 += 1
 
                         if ret != 1:
                             dislocation_densities[i][j] = dislocation_energy(dislocation_densities[i][j], orientation[i][j])
                     else:
                         if (dynamic_recrystallization_number[i][j] == 0) and near_recrystallized_cell(i, j):
-                            counter_propagate2 += 1
+                            # counter_propagate2 += 1
                             ret = propagateGrainBoundary(i, j)
+                            if ret != 1:
+                                dislocation_densities[i][j] = dislocation_energy(dislocation_densities[i][j], orientation[i][j])
                         else:
                             dislocation_densities[i][j] = dislocation_energy(dislocation_densities[i][j], orientation[i][j])
                 else:
