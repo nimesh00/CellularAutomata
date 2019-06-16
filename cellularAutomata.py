@@ -13,8 +13,8 @@ import copy
 import math
 from helper import grid_class
 
-states = 3
-n = 10
+states = 20
+n = 100
 iterations = 30
 strain_rate = 0.01
 P_initial = 6.022 * (10 ** 14)
@@ -80,11 +80,11 @@ k = 0
 
 border_grid = np.zeros((n, n))
 recrystallized_grid = np.zeros((n, n))
-orientation = np.random.randint(1, 180, size = (n,n))
-grid = np.random.randint(2, states, size = (n,n))
-updated_grid = copy.copy(grid)
-dislocation_densities = [[P_initial for l in range(n)] for m in range(n)]
-dynamic_recrystallization_number = np.zeros((n, n))
+# orientation = np.random.randint(1, 180, size = (n,n))
+# grid = np.random.randint(2, states, size = (n,n))
+# updated_grid = copy.copy(grid)
+# dislocation_densities = [[P_initial for l in range(n)] for m in range(n)]
+# dynamic_recrystallization_number = np.zeros((n, n))
 cell_strain = np.zeros((n, n))
 
 original_grid = grid_class()
@@ -156,7 +156,7 @@ def update_cell_state(i, j):
         updation_grid.state[i][j] = np.random.randint(2, states)
         updation_grid.dislocation_densities[i][j] = 0
         updation_grid.dynamic_recrystallization_number[i][j] = 1
-        updation_grid.orientation[i][j] = state_to_orientation[grid[i][j]]
+        updation_grid.orientation[i][j] = state_to_orientation[original_grid.state[i][j]]
         print(i, j, " nucleated")
         return 1
     return 0
@@ -189,13 +189,13 @@ def propagateGrainBoundary(i, j):
 
     print(i, j, " choosing: ", favoured_indices)
 
-    stored_deformation_energy = 0.5 * dislocation_densities[i][j] * mu(Current_Temp) * (b ** 2)
-    delta_orientation = abs(orientation[i][j] - orientation[favoured_indices[0]][favoured_indices[1]])
+    stored_deformation_energy = 0.5 * original_grid.dislocation_densities[i][j] * mu(Current_Temp) * (b ** 2)
+    delta_orientation = abs(original_grid.orientation[i][j] - original_grid.orientation[favoured_indices[0]][favoured_indices[1]])
     # current_mobility = mobility(delta_orientation)
     # vel = current_mobility * stored_deformation_energy
     # vel_max = current_mobility * (0.5 * mu(Current_Temp) * (b ** 2)) * ((k1 / k2) ** 2)
     # nucleation_probability = vel / vel_max
-    nucleation_probability = dislocation_densities[i][j] * ((float(k2) / k1) ** 2)
+    nucleation_probability = original_grid.dislocation_densities[i][j] * ((float(k2) / k1) ** 2)
     # print("nucleation P: ", nucleation_probability)
     random_number = np.random.random()
 
@@ -221,7 +221,7 @@ def update_grid_state(plt, fig , ax, cmap, bounds):
         for j in range(n):
             x[i*n + j] = i
             y[i*n + j] = j
-            tag[i*n + j] = grid[i][j]
+            tag[i*n + j] = original_grid.state[i][j]
     
     scat = ax.scatter(x,y,c=tag,cmap=cmap,     norm=norm)
 
@@ -314,7 +314,7 @@ def initialize_orientation():
     orientation = [[0 for i in range(n)] for j in range(n)]
     for i in range(n):
         for j in range(n):
-            orientation[i][j] = state_to_orientation[grid[i][j]]
+            orientation[i][j] = state_to_orientation[original_grid.state[i][j]]
     return orientation
 
 def near_recrystallized_cell(i, j):
@@ -363,13 +363,12 @@ def cell_on_border(i, j):
 def main():
     global true_strain
     global true_stress
-    global grid
-    global updated_grid
     global total_grains
-    global orientation
+    global original_grid
+    global updation_grid
 
-    original_grid.state = vornoi_initialization(original_grid.state)
-    # grid = monte_carlo_initialization(grid)
+    # original_grid.state = vornoi_initialization(original_grid.state)
+    original_grid.state = monte_carlo_initialization(original_grid.state)
     original_grid.dislocation_densities = initialize_dislocation_density()
     original_grid.orientation = initialize_orientation()
     
@@ -405,7 +404,6 @@ def main():
     ret = 0
     nucleatinon_step = True
     nucleation_happened = False
-    updated_grid = copy.copy(grid)
 
     update_indices = []
     propagate_indices = []
@@ -413,7 +411,7 @@ def main():
     updation_grid = copy.deepcopy(original_grid)
 
     while (k < iterations):
-        prev_grid = copy.copy(grid)
+        prev_grid = copy.deepcopy(original_grid)
         counter_propagate1 = 0
         counter_propagate2 = 0
         for i in range(n):
@@ -436,19 +434,18 @@ def main():
                         updation_grid.dislocation_densities[i][j] = dislocation_energy(updation_grid.dislocation_densities[i][j], updation_grid.orientation[i][j])
                 else:
                     updation_grid.dislocation_densities[i][j] = dislocation_energy(updation_grid.dislocation_densities[i][j], updation_grid.orientation[i][j])
-                cell_strain[i][j] = strain(grid[i][j])
+                cell_strain[i][j] = strain(original_grid.state[i][j])
         if nucleation_happened:
             nucleatinon_step = False
         original_grid = copy.deepcopy(updation_grid)
-        grid = copy.copy(updated_grid)
-        print(grid)
+        print(original_grid.state)
         # print("borer elements: ", counter_propagate1)
         # print("Not on border(after critical): ", counter_propagate2)
 
-        unq, cnts = np.unique(dynamic_recrystallization_number, return_counts=True)
+        unq, cnts = np.unique(original_grid.dynamic_recrystallization_number, return_counts=True)
         unq_array = dict(zip(unq, cnts))
         print("updated cells: ", unq_array)
-        difference_matrix = grid - prev_grid
+        difference_matrix = original_grid.dynamic_recrystallization_number - prev_grid.dynamic_recrystallization_number
         # N_unchanged_grains = difference_matrix.count(0)
         unique, counts = np.unique(difference_matrix, return_counts=True)
         unique_array = dict(zip(unique, counts))

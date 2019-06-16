@@ -1,5 +1,7 @@
-states = 3
-n = 10
+import numpy as np
+
+states = 20
+n = 100
 iterations = 30
 strain_rate = 0.01
 P_initial = 6.022 * (10 ** 14)
