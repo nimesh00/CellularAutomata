@@ -12,13 +12,13 @@ import time
 import copy
 import math
 
-states = 10
+states = 20
 n = 100
 iterations = 30
 strain_rate = 0.01
 P_initial = 6.022 * (10 ** 14)
 P_max = 8.214 * (10 ** 14)
-P_cr = 8.214 * (10 ** 14)
+P_cr = 7.214 * (10 ** 14)
 critical_orientation = 15
 k1 = 7.78 * 10 ** 8
 k2 = 27.09
@@ -81,6 +81,7 @@ border_grid = np.zeros((n, n))
 recrystallized_grid = np.zeros((n, n))
 orientation = np.random.randint(1, 180, size = (n,n))
 grid = np.random.randint(2, states, size = (n,n))
+new_grid = copy.copy(grid)
 dislocation_densities = [[P_initial for l in range(n)] for m in range(n)]
 dynamic_recrystallization_number = np.zeros((n, n))
 cell_strain = np.zeros((n, n))
@@ -148,21 +149,22 @@ def update_cell_state(i, j):
     random_number = np.random.random()
     
     if random_number <= nucleation_probability:
-        grid[i][j] = np.random.randint(2, states)
+        new_grid[i][j] = np.random.randint(2, states)
         dislocation_densities[i][j] = 0
         dynamic_recrystallization_number[i][j] = 1
         orientation[i][j] = state_to_orientation[grid[i][j]]
+        print(i, j, " nucleated")
         return 1
     return 0
 
 def propagateGrainBoundary(i, j):
     # moore's neighbourhood
-    neighbour_indices = [[i - 1, j - 1], [i - 1, j], [i - 1, j + 1],
-                        [i, j - 1],                      [i, j + 1],
-                        [i + 1, j - 1], [i + 1, j], [i + 1, j + 1]]
+    # neighbour_indices = [[i - 1, j - 1], [i - 1, j], [i - 1, j + 1],
+    #                     [i, j - 1],                      [i, j + 1],
+    #                     [i + 1, j - 1], [i + 1, j], [i + 1, j + 1]]
     
     # von-neuman neighbourhood
-    # neighbour_indices = [[i - 1, j], [i, j - 1], [i, j + 1], [i + 1, j]]
+    neighbour_indices = [[i - 1, j], [i, j - 1], [i, j + 1], [i + 1, j]]
     favoured_indices = [0, 0]
     found_nucleus = False
     min_p_neighbour = np.max(dislocation_densities)
@@ -181,7 +183,7 @@ def propagateGrainBoundary(i, j):
     if found_nucleus is False:
         return 0
 
-    # print(i, j, " choosing: ", favoured_indices)
+    print(i, j, " choosing: ", favoured_indices)
 
     stored_deformation_energy = 0.5 * dislocation_densities[i][j] * mu(Current_Temp) * (b ** 2)
     delta_orientation = abs(orientation[i][j] - orientation[favoured_indices[0]][favoured_indices[1]])
@@ -195,7 +197,7 @@ def propagateGrainBoundary(i, j):
 
     if random_number <= nucleation_probability:
         orientation[i][j] = orientation[favoured_indices[0]][favoured_indices[1]]
-        grid[i][j] = grid[favoured_indices[0]][favoured_indices[1]]
+        new_grid[i][j] = grid[favoured_indices[0]][favoured_indices[1]]
         dislocation_densities[i][j] = dislocation_densities[favoured_indices[0]][favoured_indices[1]]
         dynamic_recrystallization_number[i][j] = 1
         return 1
@@ -311,14 +313,14 @@ def initialize_orientation():
 
 def near_recrystallized_cell(i, j):
     #m moore's neighbourhood
-    neighbour_indices = [[i - 1, j - 1], [i - 1, j], [i - 1, j + 1],
-                        [i, j - 1],                      [i, j + 1],
-                        [i + 1, j - 1], [i + 1, j], [i + 1, j + 1]]
+    # neighbour_indices = [[i - 1, j - 1], [i - 1, j], [i - 1, j + 1],
+    #                     [i, j - 1],                      [i, j + 1],
+    #                     [i + 1, j - 1], [i + 1, j], [i + 1, j + 1]]
     
     # neighbours = dynamic_recrystallization_number[i-1 : i+2, j-1 : j+2]
     
     # von-neuman neighbourhood
-    # neighbour_indices = [[i - 1, j], [i, j - 1], [i, j + 1], [i + 1, j]]
+    neighbour_indices = [[i - 1, j], [i, j - 1], [i, j + 1], [i + 1, j]]
 
     for indices in neighbour_indices:
         if (indices[0] < 0) or (indices[1] < 0) or (indices[0] > n - 1) or (indices[1] > n - 1):
@@ -331,14 +333,14 @@ def near_recrystallized_cell(i, j):
 
 def cell_on_border(i, j):
     #m moore's neighbourhood
-    neighbour_indices = [[i - 1, j - 1], [i - 1, j], [i - 1, j + 1],
-                        [i, j - 1],                      [i, j + 1],
-                        [i + 1, j - 1], [i + 1, j], [i + 1, j + 1]]
+    # neighbour_indices = [[i - 1, j - 1], [i - 1, j], [i - 1, j + 1],
+    #                     [i, j - 1],                      [i, j + 1],
+    #                     [i + 1, j - 1], [i + 1, j], [i + 1, j + 1]]
 
     # neighbours = grid[i-1 : i+2, j-1 : j+2]
     
     # von-neuman neighbourhood
-    # neighbour_indices = [[i - 1, j], [i, j - 1], [i, j + 1], [i + 1, j]]
+    neighbour_indices = [[i - 1, j], [i, j - 1], [i, j + 1], [i + 1, j]]
 
     # if dynamic_recrystallization_number[i][j] == 1:
     #     border_grid[i][j] = 0
@@ -394,16 +396,22 @@ def main():
     N_r = 0
     N_unchanged_grains = n * n
     ret = 0
+<<<<<<< HEAD
+=======
+    nucleatinon_step = True
+    nucleation_happened = False
+    new_grid = grid[:, :]
+>>>>>>> ccfef1f4e9dde2816f8a2cac87392aa1c6d8c41f
     while (k < iterations):
         prev_grid = copy.copy(grid)
         counter_propagate1 = 0
         counter_propagate2 = 0
         for i in range(n):
             for j in range(n):
-                if cell_on_border(i, j):
-                    counter_propagate1 += 1
+                cell_on_border(i, j)
                 near_recrystallized_cell(i, j)
                 if dislocation_densities[i][j] >= P_cr:
+<<<<<<< HEAD
                     if cell_on_border(i, j):
                         # print("cell on border: ", i ,j)
                         if (dynamic_recrystallization_number[i][j] == 0) and near_recrystallized_cell(i, j):
@@ -418,19 +426,33 @@ def main():
                     else:
                         if (dynamic_recrystallization_number[i][j] == 0) and near_recrystallized_cell(i, j):
                             # counter_propagate2 += 1
+=======
+                    if nucleatinon_step:
+                        if (i == n - 1 and j == n - 1):
+                            nucleatinon_step = False
+                        if cell_on_border(i, j):
+                            ret = update_cell_state(i, j)
+                    else:
+                        if near_recrystallized_cell(i, j) and (dynamic_recrystallization_number[i][j] == 0):
+>>>>>>> ccfef1f4e9dde2816f8a2cac87392aa1c6d8c41f
                             ret = propagateGrainBoundary(i, j)
                             if ret != 1:
                                 dislocation_densities[i][j] = dislocation_energy(dislocation_densities[i][j], orientation[i][j])
                         else:
                             dislocation_densities[i][j] = dislocation_energy(dislocation_densities[i][j], orientation[i][j])
+                    if ret != 1:
+                        dislocation_densities[i][j] = dislocation_energy(dislocation_densities[i][j], orientation[i][j])
                 else:
                     dislocation_densities[i][j] = dislocation_energy(dislocation_densities[i][j], orientation[i][j])
                 cell_strain[i][j] = strain(grid[i][j])
-        
-        print("borer elements: ", counter_propagate1)
-        print("Not on border(after critical): ", counter_propagate2)
+        if nucleation_happened:
+            nucleatinon_step = False
+        grid = new_grid[:, :]
+        # print(border_grid)
+        # print("borer elements: ", counter_propagate1)
+        # print("Not on border(after critical): ", counter_propagate2)
 
-        unq, cnts = np.unique(dislocation_densities, return_counts=True)
+        unq, cnts = np.unique(dynamic_recrystallization_number, return_counts=True)
         unq_array = dict(zip(unq, cnts))
         # print("Dis Densts: ", unq_array)
         difference_matrix = grid - prev_grid
