@@ -12,8 +12,8 @@ import time
 import copy
 import math
 
-states = 20
-n = 100
+states = 5
+n = 10
 iterations = 30
 strain_rate = 0.01
 P_initial = 6.022 * (10 ** 14)
@@ -81,7 +81,7 @@ border_grid = np.zeros((n, n))
 recrystallized_grid = np.zeros((n, n))
 orientation = np.random.randint(1, 180, size = (n,n))
 grid = np.random.randint(2, states, size = (n,n))
-new_grid = copy.copy(grid)
+updated_grid = copy.copy(grid)
 dislocation_densities = [[P_initial for l in range(n)] for m in range(n)]
 dynamic_recrystallization_number = np.zeros((n, n))
 cell_strain = np.zeros((n, n))
@@ -149,7 +149,7 @@ def update_cell_state(i, j):
     random_number = np.random.random()
     
     if random_number <= nucleation_probability:
-        new_grid[i][j] = np.random.randint(2, states)
+        updated_grid[i][j] = np.random.randint(2, states)
         dislocation_densities[i][j] = 0
         dynamic_recrystallization_number[i][j] = 1
         orientation[i][j] = state_to_orientation[grid[i][j]]
@@ -197,7 +197,7 @@ def propagateGrainBoundary(i, j):
 
     if random_number <= nucleation_probability:
         orientation[i][j] = orientation[favoured_indices[0]][favoured_indices[1]]
-        new_grid[i][j] = grid[favoured_indices[0]][favoured_indices[1]]
+        updated_grid[i][j] = grid[favoured_indices[0]][favoured_indices[1]]
         dislocation_densities[i][j] = dislocation_densities[favoured_indices[0]][favoured_indices[1]]
         dynamic_recrystallization_number[i][j] = 1
         return 1
@@ -358,6 +358,7 @@ def main():
     global true_strain
     global true_stress
     global grid
+    global updated_grid
     global total_grains
     global orientation
 
@@ -396,12 +397,9 @@ def main():
     N_r = 0
     N_unchanged_grains = n * n
     ret = 0
-<<<<<<< HEAD
-=======
     nucleatinon_step = True
     nucleation_happened = False
-    new_grid = grid[:, :]
->>>>>>> ccfef1f4e9dde2816f8a2cac87392aa1c6d8c41f
+    updated_grid = grid[:][:]
     while (k < iterations):
         prev_grid = copy.copy(grid)
         counter_propagate1 = 0
@@ -411,22 +409,6 @@ def main():
                 cell_on_border(i, j)
                 near_recrystallized_cell(i, j)
                 if dislocation_densities[i][j] >= P_cr:
-<<<<<<< HEAD
-                    if cell_on_border(i, j):
-                        # print("cell on border: ", i ,j)
-                        if (dynamic_recrystallization_number[i][j] == 0) and near_recrystallized_cell(i, j):
-                            # counter_propagate2 += 1
-                            ret = propagateGrainBoundary(i, j)
-                        else:
-                            # ret = update_cell_state(i, j)
-                            counter_propagate2 += 1
-
-                        if ret != 1:
-                            dislocation_densities[i][j] = dislocation_energy(dislocation_densities[i][j], orientation[i][j])
-                    else:
-                        if (dynamic_recrystallization_number[i][j] == 0) and near_recrystallized_cell(i, j):
-                            # counter_propagate2 += 1
-=======
                     if nucleatinon_step:
                         if (i == n - 1 and j == n - 1):
                             nucleatinon_step = False
@@ -434,7 +416,6 @@ def main():
                             ret = update_cell_state(i, j)
                     else:
                         if near_recrystallized_cell(i, j) and (dynamic_recrystallization_number[i][j] == 0):
->>>>>>> ccfef1f4e9dde2816f8a2cac87392aa1c6d8c41f
                             ret = propagateGrainBoundary(i, j)
                             if ret != 1:
                                 dislocation_densities[i][j] = dislocation_energy(dislocation_densities[i][j], orientation[i][j])
@@ -447,7 +428,7 @@ def main():
                 cell_strain[i][j] = strain(grid[i][j])
         if nucleation_happened:
             nucleatinon_step = False
-        grid = new_grid[:, :]
+        grid = updated_grid[:, :]
         # print(border_grid)
         # print("borer elements: ", counter_propagate1)
         # print("Not on border(after critical): ", counter_propagate2)
