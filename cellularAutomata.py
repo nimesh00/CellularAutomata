@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import time
 import copy
 import math
-from helper import grid_class
+# from helper import grid_class
 
 states = 20
 n = 100
@@ -31,6 +31,13 @@ mu_o = 7.89 * 10 ** 4
 Current_Temp = 1313
 b = 2.49 * 10 ** -10
 alpha = 0.5
+
+class grid_class:
+    def __init__(self):
+        self.state = np.random.randint(2, states, size = (n,n))
+        self.dislocation_densities = [[P_initial for l in range(n)] for m in range(n)]
+        self.dynamic_recrystallization_number = np.zeros((n, n))
+        self.orientation = np.random.randint(1, 180, size = (n,n))
 
 current_strain = 0
 true_strain = []
