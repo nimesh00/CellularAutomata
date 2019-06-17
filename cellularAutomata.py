@@ -230,7 +230,7 @@ def update_grid_state(plt, fig , ax, cmap, bounds):
             y[i*n + j] = j
             tag[i*n + j] = original_grid.state[i][j]
     
-    scat = ax.scatter(x,y,c=tag,cmap=cmap,     norm=norm)
+    scat = ax.scatter(x, y, marker='s', c = tag, cmap = cmap, norm=norm)
 
     return scat
 
