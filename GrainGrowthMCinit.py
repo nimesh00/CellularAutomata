@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 
 iterate = 50
 states = 10
-n = 20
+n = 100
 matx, maty = n, n
 arr = np.zeros((matx,maty))
 nx = []

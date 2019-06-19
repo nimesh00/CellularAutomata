@@ -38,12 +38,12 @@ def pseudoHexagonalNeighbourInit():
                     neighbour_indices = [[i - 1, j - 1], [i - 1, j], 
                                         [i, j - 1],                      [i, j + 1],
                                                         [i + 1, j], [i + 1, j + 1]]
-                    flag = 1
+                    # flag = 1
                 elif flag == 1:
                     neighbour_indices = [                [i - 1, j], [i - 1, j + 1],
                                         [i, j - 1],                      [i, j + 1],
                                         [i + 1, j - 1], [i + 1, j],               ]
-                    flag = 0
+                    # flag = 0
                 
                 for indices in neighbour_indices:
                     if (indices[0] < 0) or (indices[1] < 0) or (indices[0] > n - 1) or (indices[1] > n - 1):
@@ -53,6 +53,7 @@ def pseudoHexagonalNeighbourInit():
                         updation_grid.state[i][j] = original_grid.state[indices[0]][indices[1]]
                         updation_grid.dynamic_recrystallization_number[i][j] = 1
                         break
+        flag = not flag
         original_grid = copy.deepcopy(updation_grid)
         print("Iteration", m)
         m += 1
