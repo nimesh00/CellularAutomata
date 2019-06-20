@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 
 #to develop the initial grain structure
 
-iterations = 100000
+n_iterations = 100000
 states = 50
 n = 100
 
@@ -17,7 +17,7 @@ for m in range(states):
 
 #print(mat)
 
-for m in range(iterations):
+for m in range(n_iterations):
     i = random.randint(0,n) - 1
     j = random.randint(0,n) - 1
     if m % 2 == 0:
@@ -89,16 +89,16 @@ for i in range(states):
 def most_common(List): 
     counter = 0
     num = List[0] 
-      
+    
     for i in List: 
         curr_frequency = List.count(i) 
         if(curr_frequency> counter): 
             counter = curr_frequency 
             num = i 
-  
+
     return num
 
-for m in range(iterations):
+for m in range(n_iterations):
     print(m)
     i = random.randint(1,n) - 1
     j = random.randint(1,n) - 1

@@ -11,12 +11,12 @@ import matplotlib.pyplot as plt
 import time
 import copy
 import math
+import cv2
 # from helper import grid_class
 
 states = 50
 n = 100
 iterations = 30
-n_iterations = 100000
 strain_rate = 0.01
 P_initial = 6.022 * (10 ** 14)
 P_max = 8.214 * (10 ** 14)
@@ -82,6 +82,11 @@ strains = [0.017232,
 1.19712]
 
 strains = interpolate_array(strains)
+
+# for g in range(10):
+#     strains = interpolate_array(strains)
+#     print("New length: ", len(strains))
+
 iterations = len(strains)
 global k
 k = 0
@@ -107,6 +112,7 @@ def simulated_stress():
     # average_dislocation_energy = np.mean(dislocation_densities)
     global total_grains
     average_dislocation_energy = np.mean(original_grid.dislocation_densities)
+    # print("Densities: ", average_dislocation_energy, P_cr)
     simulated_stress = alpha * mu(Current_Temp) * b * np.sqrt(average_dislocation_energy)
     return simulated_stress
 
@@ -162,21 +168,30 @@ def update_cell_state(i, j):
     
     if random_number <= nucleation_probability:
         updation_grid.state[i][j] = np.random.randint(2, states)
-        updation_grid.dislocation_densities[i][j] = 0
+        updation_grid.dislocation_densities[i][j] = P_initial
         updation_grid.dynamic_recrystallization_number[i][j] = 1
         updation_grid.orientation[i][j] = state_to_orientation[original_grid.state[i][j]]
         print(i, j, " nucleated")
         return 1
     return 0
 
-def propagateGrainBoundary(i, j):
+def propagateGrainBoundary(i, j, k):
     # moore's neighbourhood
     # neighbour_indices = [[i - 1, j - 1], [i - 1, j], [i - 1, j + 1],
     #                     [i, j - 1],                      [i, j + 1],
     #                     [i + 1, j - 1], [i + 1, j], [i + 1, j + 1]]
     
     # von-neuman neighbourhood
-    neighbour_indices = [[i - 1, j], [i, j - 1], [i, j + 1], [i + 1, j]]
+    #neighbour_indices = [[i - 1, j], [i, j - 1], [i, j + 1], [i + 1, j]]
+    if k % 2 == 0:
+        neighbour_indices = [[i - 1, j - 1], [i - 1, j], 
+                            [i, j - 1],                      [i, j + 1],
+                                            [i + 1, j], [i + 1, j + 1]]
+    else:
+        neighbour_indices = [                [i - 1, j], [i - 1, j + 1],
+                            [i, j - 1],                      [i, j + 1],
+                            [i + 1, j - 1], [i + 1, j],               ]
+    
     favoured_indices = [0, 0]
     found_nucleus = False
     min_p_neighbour = np.max(original_grid.dislocation_densities)
@@ -248,110 +263,26 @@ def check_mat_for_zero(matrix):
                 return True
     return False
 
+def most_common(List): 
+    counter = 0
+    num = List[0] 
+      
+    for i in List: 
+        curr_frequency = List.count(i) 
+        if(curr_frequency> counter): 
+            counter = curr_frequency 
+            num = i 
+  
+    return num
 
-def vornoi_initialization(mat):
-    matx, maty = n, n
-    nx = []
-    ny = []
-    ns = []
-    for i in range(states):
-        nx.append(random.randrange(matx))
-        ny.append(random.randrange(maty))
-        ns.append(random.randrange(states))
-    for y in range(maty):
-        for x in range(matx):
-            dmin = math.hypot(matx-1, maty-1)
-            j = states - 1
-            for i in range(states):
-                d = math.hypot(nx[i]-x, ny[i]-y)
-                if d < dmin:
-                    dmin = d
-                    j = i
-            mat[y][x] = j
-    print(mat)
-    return mat
-
-def initialize_dislocation_density():
-    possible_random_numbers = np.random.random((states))
-    dislocation_densities = [[P_initial for i in range(n)] for j in range(n)]
-    for i in range(n):
-        for j in range(n):
-            # dislocation_densities[i][j] = (2 * possible_random_numbers[original_grid.state[i][j]] + 7) * (10 ** 14)
-            dislocation_densities[i][j] = (1 * np.random.random() + 6) * (10 ** 14)
-    return dislocation_densities
-
-def initialize_orientation():
-    global state_to_orientation
-    state_to_orientation = np.random.randint(1, 180, size = states)
-    orientation = [[0 for i in range(n)] for j in range(n)]
-    for i in range(n):
-        for j in range(n):
-            orientation[i][j] = state_to_orientation[original_grid.state[i][j]]
-    return orientation
-
-def near_recrystallized_cell(i, j):
-    #m moore's neighbourhood
-    # neighbour_indices = [[i - 1, j - 1], [i - 1, j], [i - 1, j + 1],
-    #                     [i, j - 1],                      [i, j + 1],
-    #                     [i + 1, j - 1], [i + 1, j], [i + 1, j + 1]]
-    
-    # neighbours = dynamic_recrystallization_number[i-1 : i+2, j-1 : j+2]
-    
-    # von-neuman neighbourhood
-    neighbour_indices = [[i - 1, j], [i, j - 1], [i, j + 1], [i + 1, j]]
-
-    for indices in neighbour_indices:
-        if (indices[0] < 0) or (indices[1] < 0) or (indices[0] > n - 1) or (indices[1] > n - 1):
-            continue
-        if original_grid.dynamic_recrystallization_number[indices[0]][indices[1]] == 1:
-            recrystallized_grid[i][j] = 1
-            # print(neighbours)
-            return True
-    return False
-
-def cell_on_border(i, j):
-    #m moore's neighbourhood
-    # neighbour_indices = [[i - 1, j - 1], [i - 1, j], [i - 1, j + 1],
-    #                     [i, j - 1],                      [i, j + 1],
-    #                     [i + 1, j - 1], [i + 1, j], [i + 1, j + 1]]
-
-    # neighbours = grid[i-1 : i+2, j-1 : j+2]
-    
-    # von-neuman neighbourhood
-    neighbour_indices = [[i - 1, j], [i, j - 1], [i, j + 1], [i + 1, j]]
-
-    # if dynamic_recrystallization_number[i][j] == 1:
-    #     border_grid[i][j] = 0
-    for indices in neighbour_indices:
-        if (indices[0] < 0) or (indices[1] < 0) or (indices[0] > n - 1) or (indices[1] > n - 1):
-            continue
-        # print('Cell Value, Neighbour Value : ', grid[i][j], grid[indices[0]][indices[1]])
-        if original_grid.state[i][j] != original_grid.state[indices[0]][indices[1]]:
-            # print(neighbours)
-            border_grid[i][j] = 1
-            return True
-    return False
-
-def MonteCarlo_initialization(mat):
+def monte_carlo_initialization(mat):
     states_list = []
-
+    iterations_mc = 100000
     for i in range(states):
-        states_list.append(i+1)
-    
-    def most_common(List): 
-        counter = 0
-        num = List[0] 
-        
-        for i in List: 
-            curr_frequency = List.count(i) 
-            if(curr_frequency> counter): 
-                counter = curr_frequency 
-                num = i 
-    
-        return num
+        states_list.append(i+1)    
 
-    for m in range(n_iterations):
-        # print(m)
+    for m in range(iterations_mc):
+        #print(m)
         i = random.randint(1,n) - 1
         j = random.randint(1,n) - 1
         if m % 2 == 0:
@@ -387,7 +318,7 @@ def MonteCarlo_initialization(mat):
             mat[i][j] = original
         else:
             mat[i][j] = switch
-        
+    
         #find the final energy after switching         
         for indices in neighbour_indices:
             if (indices[0] < 0) or (indices[1] < 0) or (indices[0] > n - 1) or (indices[1] > n - 1):
@@ -411,16 +342,20 @@ def MonteCarlo_initialization(mat):
             if prob >= rand:
                 mat[i][j] = switch
             else:
-                mat[i][j] = original     
-    return mat
+                mat[i][j] = original
 
-def initialize_microstructure():
-    mat = np.zeros((n,n))
+    return mat
+            
+def grain_initialization():
+    iterations_init = 100000
+    mat = np.zeros((n,n), dtype=int)
+    # print(mat)
     for m in range(states):
         i = int(random.randrange(n))
         j = int(random.randrange(n))
-        mat[i][j] = 1 + int(random.randrange(states))
-    for m in range(n_iterations):
+        mat[i][j] = 1 + random.randrange(states)
+
+    for m in range(iterations_init):
         i = random.randint(0,n) - 1
         j = random.randint(0,n) - 1
         if m % 2 == 0:
@@ -432,7 +367,7 @@ def initialize_microstructure():
                                 [i, j - 1],                      [i, j + 1],
                                 [i + 1, j - 1], [i + 1, j],               ]
 
-        
+    
         if mat[i][j] != 0:
             for indices in neighbour_indices:
                 if (indices[0] < 0) or (indices[1] < 0) or (indices[0] > n - 1) or (indices[1] > n - 1):
@@ -443,10 +378,91 @@ def initialize_microstructure():
 
                 else:
                     continue
-    print(mat)
-    mat = MonteCarlo_initialization(mat)
+    
+    return mat
+
+def vornoi_initialization(mat):
+    matx, maty = n, n
+    nx = []
+    ny = []
+    ns = []
+    for i in range(states):
+        nx.append(random.randrange(matx))
+        ny.append(random.randrange(maty))
+        ns.append(random.randrange(states))
+    for y in range(maty):
+        for x in range(matx):
+            dmin = math.hypot(matx-1, maty-1)
+            j = states - 1
+            for i in range(states):
+                d = math.hypot(nx[i]-x, ny[i]-y)
+                if d < dmin:
+                    dmin = d
+                    j = i
+            mat[y][x] = j
     print(mat)
     return mat
+
+def initialize_dislocation_density():
+    possible_random_numbers = np.random.random((states))
+    dislocation_densities = [[P_initial for i in range(n)] for j in range(n)]
+    for i in range(n):
+        for j in range(n):
+            # dislocation_densities[i][j] = (2 * possible_random_numbers[original_grid.state[i][j]] + 7) * (10 ** 14)
+            dislocation_densities[i][j] = (1 * np.random.random() + 6) * (10 ** 14)
+    return dislocation_densities
+
+def initialize_orientation():
+    global state_to_orientation
+    state_to_orientation = np.random.randint(1, 180, size = (states + 1))
+    orientation = [[0 for i in range(n)] for j in range(n)]
+    for i in range(n):
+        for j in range(n):
+            orientation[i][j] = state_to_orientation[original_grid.state[i][j]]
+    return orientation
+
+def near_recrystallized_cell(i, j):
+    #m moore's neighbourhood
+    neighbour_indices = [[i - 1, j - 1], [i - 1, j], [i - 1, j + 1],
+                         [i, j - 1],                     [i, j + 1],
+                         [i + 1, j - 1], [i + 1, j], [i + 1, j + 1]]
+    
+    # neighbours = dynamic_recrystallization_number[i-1 : i+2, j-1 : j+2]
+    
+    # von-neuman neighbourhood
+    #neighbour_indices = [[i - 1, j], [i, j - 1], [i, j + 1], [i + 1, j]]
+
+    for indices in neighbour_indices:
+        if (indices[0] < 0) or (indices[1] < 0) or (indices[0] > n - 1) or (indices[1] > n - 1):
+            continue
+        if original_grid.dynamic_recrystallization_number[indices[0]][indices[1]] == 1:
+            recrystallized_grid[i][j] = 1
+            # print(neighbours)
+            return True
+    return False
+
+def cell_on_border(i, j):
+    #m moore's neighbourhood
+    neighbour_indices = [[i - 1, j - 1], [i - 1, j], [i - 1, j + 1],
+                         [i, j - 1],                     [i, j + 1],
+                         [i + 1, j - 1], [i + 1, j], [i + 1, j + 1]]
+
+    # neighbours = grid[i-1 : i+2, j-1 : j+2]
+    
+    # von-neuman neighbourhood
+    #neighbour_indices = [[i - 1, j], [i, j - 1], [i, j + 1], [i + 1, j]]
+
+    # if dynamic_recrystallization_number[i][j] == 1:
+    #     border_grid[i][j] = 0
+    for indices in neighbour_indices:
+        if (indices[0] < 0) or (indices[1] < 0) or (indices[0] > n - 1) or (indices[1] > n - 1):
+            continue
+        # print('Cell Value, Neighbour Value : ', grid[i][j], grid[indices[0]][indices[1]])
+        if original_grid.state[i][j] != original_grid.state[indices[0]][indices[1]]:
+            # print(neighbours)
+            border_grid[i][j] = 1
+            return True
+    return False
 
 def main():
     global true_strain
@@ -455,10 +471,9 @@ def main():
     global original_grid
     global updation_grid
 
-    original_grid.state = vornoi_initialization(original_grid.state)
-    # print(original_grid.state)
-    # original_grid.state = monte_carlo_initialization(original_grid.state)
-    # original_grid.state = initialize_microstructure()
+    original_grid.state = monte_carlo_initialization(grain_initialization())
+    # original_grid.state = vornoi_initialization(original_grid.state)
+    print(original_grid.state)
     original_grid.dislocation_densities = initialize_dislocation_density()
     original_grid.orientation = initialize_orientation()
     
@@ -466,7 +481,7 @@ def main():
     N = states
     xDrx = []
     # setup the plot
-    fig, ax = plt.subplots(1,1, figsize=(10,10))
+    fig, ax = plt.subplots(1,3, figsize=(10,10))
     cmap = plt.cm.jet
     # extract all colors from the .jet map
     cmaplist = [cmap(i) for i in range(cmap.N)]
@@ -481,11 +496,11 @@ def main():
 
     bounds = np.linspace(0,N,N+1)
 
-    cb = plt.colorbar(update_grid_state(plt, fig, ax, cmap, bounds), spacing='proportional',ticks=bounds)
+    cb = plt.colorbar(update_grid_state(plt, fig, ax[0], cmap, bounds), spacing='proportional',ticks=bounds)
     cb.set_label('Custom cbar')
     
 
-    update_grid_state(plt, fig, ax, cmap, bounds)
+    update_grid_state(plt, fig, ax[0], cmap, bounds)
     plt.pause(0.01)
 
     N_c = n * n
@@ -516,7 +531,7 @@ def main():
                             nucleation_happened = True
                     else:
                         if near_recrystallized_cell(i, j) and (original_grid.dynamic_recrystallization_number[i][j] == 0):
-                            ret = propagateGrainBoundary(i, j)
+                            ret = propagateGrainBoundary(i, j, k)
                             propagate_indices += [i, j]
                         else:
                             updation_grid.dislocation_densities[i][j] = dislocation_energy(updation_grid.dislocation_densities[i][j], updation_grid.orientation[i][j])
@@ -571,12 +586,10 @@ def main():
         k += 1
         # print(grid)
         # BLOCK 1 START
-        
-        update_grid_state(plt, fig, ax, cmap, bounds)
-        # ax[1].plot(true_strain, true_stress, 'b-')
-        # ax[2].plot(true_strain, xDrx, 'r-')
-        plt.pause(0.01)
-        
+        update_grid_state(plt, fig, ax[0], cmap, bounds)
+        ax[1].plot(true_strain, true_stress, 'b-')
+        ax[2].plot(true_strain, xDrx, 'r-')
+        plt.pause(0.01)        
         # BLOCK 1 END
     # BLOCK 2 START
     # update_grid_state(plt, fig, ax[0], cmap, bounds)
