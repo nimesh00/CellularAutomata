@@ -11,7 +11,6 @@ import matplotlib.pyplot as plt
 import time
 import copy
 import math
-import cv2
 # from helper import grid_class
 
 states = 20
@@ -83,7 +82,7 @@ strains = [0.017232,
 
 strains = interpolate_array(strains)
 
-for g in range(10):
+for g in range(11):
     strains = interpolate_array(strains)
     print("New length: ", len(strains))
 
@@ -474,7 +473,7 @@ def main():
     original_grid.state = monte_carlo_initialization(grain_initialization())
     # original_grid.state = vornoi_initialization(original_grid.state)
     print(original_grid.state)
-    original_grid.dislocation_densities = initialize_dislocation_density()
+    # original_grid.dislocation_densities = initialize_dislocation_density()
     original_grid.orientation = initialize_orientation()
     
     k = 0
@@ -596,18 +595,18 @@ def main():
         true_strain += [strains[k]]
         true_stress += [net_stress]
         # print("True Stress: ", true_stress)
-        # print(k)
+        print(k)
         # print(grid)
         # print(dislocation_densities)
         # pw.plot(true_strain, true_stress, pen='r')
         k += 1
         # print(grid)
         # BLOCK 1 START
-        # if k % 100 == 0:
-        #     update_grid_state(plt, fig, ax, cmap, bounds)
-        #     # ax[1].plot(true_strain, true_stress, 'b-')
-        #     # ax[2].plot(true_strain, xDrx, 'r-')
-        #     plt.pause(0.01)
+        if k % 100 == 0:
+            update_grid_state(plt, fig, ax, cmap, bounds)
+            # ax[1].plot(true_strain, true_stress, 'b-')
+            # ax[2].plot(true_strain, xDrx, 'r-')
+            plt.pause(0.01)
         # try:
         #     if keyboard.is_pressed('q'):
         #         update_grid_state(plt, fig, ax, cmap, bounds)
@@ -630,7 +629,7 @@ def main():
         
         # BLOCK 1 END
     # BLOCK 2 START
-    update_grid_state(plt, fig, ax, cmap, bounds)
+    # update_grid_state(plt, fig, ax, cmap, bounds)
     # ax[1].plot(true_strain, true_stress, 'b-')
     # ax[2].plot(true_strain, xDrx, 'r-')
     #BLOCK 2 END
