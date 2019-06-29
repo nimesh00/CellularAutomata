@@ -11,13 +11,13 @@ n = 100
 iterations = 30
 strain_rate = 0.01
 P_initial = 6.022 * (10 ** 14)
-P_max = 8.214 * (10 ** 14)
-P_cr = 8.214 * (10 ** 14)
+P_max = 8.14 * (10 ** 14)
+P_cr = 8.14 * (10 ** 14)
 critical_misorientation = 15
 k1 = 7.78 * 10 ** 8
 k2 = 27.09
 cd = 2 * 10 ** -6
-Mo = 1.4 * (10 ** -6)
+Mo = 1.4 * (10 ** -5)
 Tm = 1453  
 mu_o = 7.89 * 10 ** 4
 Current_Temp = 1313
@@ -33,7 +33,7 @@ class grid_class:
         self.orientation = [[np.random.randint(1, 360, size = (n,n)), np.random.randint(1, 180, size = (n,n)), np.random.randint(1, 360, size = (n,n))]]
         #print(orientation[0][2][2][2])
 
-current_strain = 0   
+current_strain = 0.0172  
 true_strain = []
 true_stress = []
 
@@ -226,11 +226,11 @@ def monte_carlo_initialization(mat):
 
 def initialize_dislocation_density():
     possible_random_numbers = np.random.random((states+1))
-    # creates states-2 diff random values only?
-    dislocation_densities = [[P_initial for i in range(n)] for j in range(n)]
+    dislocation_densities = [[P_initial for i in range(n)] for j in range(n)]                                       #creates states-2 diff random values only?
     for i in range(n):
         for j in range(n):
-            dislocation_densities[i][j] = (2 * possible_random_numbers[original_grid.state[i][j]] + 7) * (10 ** 14)
+            # dislocation_densities[i][j] = (2 * possible_random_numbers[original_grid.state[i][j]] + 6) * (10 ** 14)
+            dislocation_densities[i][j] = (2 * np.random.random() + 6) * (10 ** 14)
     return dislocation_densities
 
 
@@ -292,11 +292,13 @@ def mis_orientation(ph_1, th_1, om_1, ph_2, th_2, om_2):
 
     
 def grain_velocity(delta_dislocation_btw_adj_cells, misorientation_btw_adj_cells):                          
-    mobility  = Mo * (1 - np.exp( -5 * ((float(misorientation_btw_adj_cells) / critical_misorientation) ** 4)))
+    mobility  = Mo * (1 - np.exp( -5 * ((float(misorientation_btw_adj_cells+1) / critical_misorientation) ** 4)))
 
     gama_o = (mu(Current_Temp) * b * critical_misorientation) / (4 * math.pi * (1 - Poisson_ratio))
     if misorientation_btw_adj_cells >= critical_misorientation:
         gama = gama_o                                                   #gama is grain_boundary_energy 
+    elif misorientation_btw_adj_cells == 0:
+        gama = 0
     else:
         gama = gama_o * (misorientation_btw_adj_cells / critical_misorientation) * (1 - np.log(misorientation_btw_adj_cells / critical_misorientation))
 
@@ -318,24 +320,8 @@ def strain(avg_velocity):
 
 def update_dislocation_density(P_prev_time_step, delta_strn):                                                                                                                                    
     delta_p_for_same_cell = (k1 * np.sqrt(P_prev_time_step) - k2 * P_prev_time_step) * (delta_strn)
-    # 1st change :- P_prev => P_prev_time_step
     P_new = P_prev_time_step + delta_p_for_same_cell
     return P_new
-
-
-def update_state(P_prev_same_cell, delta_strn, state_current):
-    P_new = update_dislocation_density(P_prev_same_cell, delta_strn)
-    new_state = state_current
-    P_max = np.max(original_grid.dislocation_densities)
-    choice = 0
-    nucleation_probability = P_new / P_max
-    random_number = np.random.randint(0, 100)
-    random_number = float(random_number) / 100
-    if random_number <= nucleation_probability:                                             
-        choice = 1
-        new_state = np.random.randint(2, states)
-
-    return choice, new_state
 
 
 def update_recrystallized_cell_state(i, j):
@@ -345,12 +331,12 @@ def update_recrystallized_cell_state(i, j):
     
     if random_number <= nucleation_probability:
         updation_grid.state[i][j] = np.random.randint(2, states)
-        updation_grid.dislocation_densities[i][j] = P_initial
+        updation_grid.dislocation_densities[i][j] = 9 * 10 ** 12 #P_initial
         updation_grid.dynamic_recrystallization_number[i][j] = 1
         updation_grid.orientation[0][0][i][j] = state_to_orientation_ph[original_grid.state[i][j]]                                               
         updation_grid.orientation[0][1][i][j] = state_to_orientation_th[original_grid.state[i][j]]
         updation_grid.orientation[0][2][i][j] = state_to_orientation_om[original_grid.state[i][j]]
-        print(i, j, " nucleated")
+        #print(i, j, " nucleated")
         return 1
     return 0
 
@@ -440,7 +426,7 @@ def propagateGrainBoundary(i, j, k):
         updation_grid.orientation[0][1][i][j] =                original_grid.orientation[0][1][favoured_indices[0]][favoured_indices[1]]
         updation_grid.orientation[0][2][i][j] =                original_grid.orientation[0][2][favoured_indices[0]][favoured_indices[1]]
         updation_grid.state[i][j] =                            original_grid.state[favoured_indices[0]][favoured_indices[1]]
-        updation_grid.dislocation_densities[i][j] =            P_initial    
+        updation_grid.dislocation_densities[i][j] =            9 * 10 ** 12 #P_initial    
         updation_grid.dynamic_recrystallization_number[i][j] = 1
         return 1
     return 0
@@ -533,11 +519,11 @@ def main():
                     for indices in neighbour_indices:
                         if (indices[0] < 0) or (indices[1] < 0) or (indices[0] > n - 1) or (indices[1] > n - 1):
                             continue
-                        if original_grid.state[i][j] == original_grid.state[indices[0]][indices[1]]:
+                        elif original_grid.state[i][j] == original_grid.state[indices[0]][indices[1]]:
                             continue
                         else:
                             misorientations += [mis_orientation(original_grid.orientation[0][0][i][j], original_grid.orientation[0][1][i][j], original_grid.orientation[0][2][i][j], original_grid.orientation[0][0][indices[0]][indices[1]], original_grid.orientation[0][1][indices[0]][indices[1]], original_grid.orientation[0][2][indices[0]][indices[1]])]
-                            delta_dislocations += [original_grid.dislocation_densities[i][j] - original_grid.dislocation_densities[indices[0]][indices[1]]]
+                            delta_dislocations += [abs(original_grid.dislocation_densities[i][j] - original_grid.dislocation_densities[indices[0]][indices[1]])]
 
         for i in range(len(misorientations)):
             velocities += [grain_velocity(delta_dislocations[i], misorientations[i])]
@@ -573,7 +559,7 @@ def main():
 
         unq, cnts = np.unique(original_grid.dynamic_recrystallization_number, return_counts=True)
         unq_array = dict(zip(unq, cnts))
-        print("updated cells: ", unq_array)
+        #print("updated cells: ", unq_array)
         difference_matrix = original_grid.dynamic_recrystallization_number - prev_grid.dynamic_recrystallization_number
         # N_unchanged_grains = difference_matrix.count(0)
         unique, counts = np.unique(difference_matrix, return_counts=True)
@@ -584,8 +570,7 @@ def main():
         # total number of grains
         global new_grains
         new_grains = N_c - N_unchanged_grains
-        N_r += N_c - N_unchanged_grains
-        N_c += (N_c - N_unchanged_grains)                                                                                    #query
+        N_r += N_c - N_unchanged_grains                                                                                    
         
         total_grains = N_c
 
@@ -600,7 +585,7 @@ def main():
         #print("Net strain value:", net_strain)
         # print("Net stress value:", net_stress)
         # true_strain = true_strain + [net_strain]
-        true_strain += [net_strain] #[strains[k]]
+        true_strain += [net_strain] 
         true_stress += [net_stress]
         #print("True Strain: ", true_strain)
         print("Iteration",k, "completed")
@@ -625,18 +610,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
