@@ -1,0 +1,8 @@
+However, in the present simulations, the modified von Neumann neighbourhood is used, because it gives potentially
+more freedom for the grain to grow. The neighbourhood used is like the hexagonal neighbourhood as corner elements are
+harder to recrystallize with proportionality of (0.48). If it is assumed that the boundary has a spherical curvature (or
+elliptical), with the fixed radii, the hexagon (or in this case an octagon) inside this sphere with a fixed radii will cover more
+surface than a square, which is energetically more favourable. Moreover, the overall root mean square distance mismatch for
+hexagonal packing will be smaller than for square.
+
+DRX step occurs once the velocity of the grain boundary is high enough to surpass the size of the element.

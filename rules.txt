@@ -1,0 +1,19 @@
+Nucleation:
+    1) dislocation density should be greater than critial
+    2) cell should be on border
+    3) cell should not be a neighbour of previously recrystallized cell
+    4) has not been previously recrystallized
+    If the total dislocation density P is more than the critical value P_cr, then, nucleation can take place.
+    If theta > theta_cr and dP > dP_cr for the current element, then the
+        site is identified as a potential nucleus. From these, viable nuclei are chosen with a probability depending on the stored
+    energy difference and the grain boundary mobility. This ensures that these nuclei have a higher chance of growing. The
+    switching parameter used to determine the probability is based on the velocity of the grain boundary:
+
+Growth:
+    The current element, i, has to be not recrystallized in the previous steps and has to have at-least one recrystallized neighbour i.e.
+    (Ni = 0 and Nj = 1 :: j:neighbour of i)
+
+    If this is satisfied then the grain boundary mobility (based on the misorientation between the two cells) and 
+    the difference in stored dislocation energy are calculated
+
+    
