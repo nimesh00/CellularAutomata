@@ -1,4 +1,4 @@
-#! /usr/bin/python3
+#! /usr/bin/env python3
 
 import numpy as np
 import random
@@ -13,9 +13,10 @@ n = 100
 iterations = 30
 strain_rate = 0.01
 P_initial = 6.022 * (10 ** 14)
-P_RX_initial = 9 * (10 ** 12)
-P_max = 8.14 * (10 ** 14)
-P_cr = 8.14 * (10 ** 14)
+P_RX_initial = 6 * (10 ** 13)
+P_max = 8.08 * (10 ** 14)
+P_cr = 8.08 * (10 ** 14)
+e_cr = 0.15
 critical_misorientation = 15
 k1 = 7.78 * 10 ** 8
 k2 = 27.09
@@ -322,10 +323,14 @@ def simulated_stress():
 
 
 def cell_on_border(i, j):
-    neighbour_indices = [                [i - 1, j],               
-                         [i, j - 1],                     [i, j + 1],
-                                         [i + 1, j],               ]
+    #neighbour_indices = [                [i - 1, j],               
+    #                     [i, j - 1],                     [i, j + 1],
+    #                                     [i + 1, j],               ]
 
+    neighbour_indices = [[i - 1, j - 1], [i - 1, j], [i - 1, j + 1],               
+                         [i, j - 1],                     [i, j + 1],
+                         [i + 1, j - 1], [i + 1, j], [i + 1, j + 1]]
+    
     for indices in neighbour_indices:
         if (indices[0] < 0) or (indices[1] < 0) or (indices[0] > n - 1) or (indices[1] > n - 1):
             continue
@@ -346,10 +351,14 @@ def check_mat_for_zero(matrix):
 
 
 def near_recrystallized_cell(i, j):
-    neighbour_indices = [                [i - 1, j],               
+    #neighbour_indices = [                [i - 1, j],               
+    #                     [i, j - 1],                     [i, j + 1],
+    #                                     [i + 1, j],               ]
+    
+    neighbour_indices = [[i - 1, j - 1], [i - 1, j], [i - 1, j + 1],               
                          [i, j - 1],                     [i, j + 1],
-                                         [i + 1, j],               ]
-
+                         [i + 1, j - 1], [i + 1, j], [i + 1, j + 1]]
+    
     for indices in neighbour_indices:
         if (indices[0] < 0) or (indices[1] < 0) or (indices[0] > n - 1) or (indices[1] > n - 1):
             continue
@@ -386,10 +395,10 @@ def propagateGrainBoundary(i, j, k):
     if found_nucleus is False:
         return 0
 
-    nucleation_probability = original_grid.dislocation_densities[i][j] * ((float(k2) / k1) ** 2)
+    propagation_probability = original_grid.dislocation_densities[i][j] * ((float(k2) / k1) ** 2)
     random_number = np.random.random()
 
-    if random_number <= nucleation_probability:
+    if random_number <= propagation_probability:
         updation_grid.orientation[0][0][i][j] =                original_grid.orientation[0][0][favoured_indices[0]][favoured_indices[1]]
         updation_grid.orientation[0][1][i][j] =                original_grid.orientation[0][1][favoured_indices[0]][favoured_indices[1]]
         updation_grid.orientation[0][2][i][j] =                original_grid.orientation[0][2][favoured_indices[0]][favoured_indices[1]]
@@ -423,8 +432,8 @@ def initialize_dislocation_density():
     dislocation_densities = [[P_initial for i in range(n)] for j in range(n)]                                       #creates states-2 diff random values only?
     for i in range(n):
         for j in range(n):
-            dislocation_densities[i][j] = (1 * possible_random_numbers[original_grid.state[i][j]] + 6) * (10 ** 14)
-            # dislocation_densities[i][j] = (2 * np.random.random() + 6) * (10 ** 14)
+            dislocation_densities[i][j] = (2 * possible_random_numbers[original_grid.state[i][j]] + 6) * (10 ** 14)
+            #dislocation_densities[i][j] = (2 * np.random.random() + 6) * (10 ** 14)
     return dislocation_densities
 
 
@@ -449,11 +458,15 @@ def initialize_orientation():
 def potential_nucleus(i, j):
     if original_grid.dynamic_recrystallization_number[i][j] == 1:
         return False
-    neighbour_indices = [                [i - 1, j],               
+    #neighbour_indices = [                [i - 1, j],               
+    #                     [i, j - 1],                     [i, j + 1],
+    #                                     [i + 1, j],               ]
+    
+    neighbour_indices = [[i - 1, j - 1], [i - 1, j], [i - 1, j + 1],               
                          [i, j - 1],                     [i, j + 1],
-                                         [i + 1, j],               ]
-
-    critical_dP = 0.001 * np.max(original_grid.dislocation_densities)
+                         [i + 1, j - 1], [i + 1, j], [i + 1, j + 1]]
+    
+    #critical_dP = 0.001 * np.max(original_grid.dislocation_densities)
 
     for indices in neighbour_indices:
         if (indices[0] < 0) or (indices[1] < 0) or (indices[0] > n - 1) or (indices[1] > n - 1):
@@ -471,8 +484,8 @@ def potential_nucleus(i, j):
 
         condition1 = (misorientation >= critical_misorientation)
 
-        dP = original_grid.dislocation_densities[i][j] - original_grid.dislocation_densities[indices[0]][indices[1]]
-        condition2 = (dP >= critical_dP)
+        #dP = original_grid.dislocation_densities[i][j] - original_grid.dislocation_densities[indices[0]][indices[1]]
+        condition2 = (original_grid.dislocation_densities[i][j] >= P_cr)
 
         # print("misorientation, dP: ", misorientation, (dP / critical_dP))
         # print("cell, neighbour: ", original_grid.dislocation_densities[i][j], original_grid.dislocation_densities[indices[0]][indices[1]])
@@ -496,7 +509,7 @@ def potential_growth(i, j, k):
                             [i, j - 1],                      [i, j + 1],
                             [i + 1, j - 1], [i + 1, j],               ]
 
-    critical_dP = 0.01 * np.max(original_grid.dislocation_densities)
+    #critical_dP = 0.001 * np.max(original_grid.dislocation_densities)
 
     for indices in neighbour_indices:
         if (indices[0] < 0) or (indices[1] < 0) or (indices[0] > n - 1) or (indices[1] > n - 1):
@@ -514,11 +527,7 @@ def potential_growth(i, j, k):
 
         condition1 = (misorientation >= critical_misorientation)
 
-        dP = original_grid.dislocation_densities[i][j] - original_grid.dislocation_densities[indices[0]][indices[1]]
-
-        condition2 = (dP >= critical_dP)
-
-        if original_grid.dynamic_recrystallization_number[indices[0]][indices[1]] == 1: # and condition1 and condition2:
+        if original_grid.dynamic_recrystallization_number[indices[0]][indices[1]] == 1 and condition1:
             return True
     return False
 
@@ -614,21 +623,24 @@ def main():
         for i in range(len(misorientations)):
             velocities += [grain_velocity(delta_dislocations[i], misorientations[i])]
             
-        _, delta_strain = strain(np.mean(velocities))
+        stn, delta_strain = strain(np.mean(velocities))
 
         avg_dis_den = np.mean(original_grid.dislocation_densities)
-        if avg_dis_den > P_cr:
+        if stn >= e_cr:
             start_process = True
         #your normal code continues from here
         for i in range(n):
             for j in range(n):
                 if original_grid.dynamic_recrystallization_number[i][j] == 1:
-                    updation_grid.dislocation_densities[i][j] = update_dislocation_density(updation_grid.dislocation_densities[i][j], delta_strain)
+                    # updation_grid.dislocation_densities[i][j] = update_dislocation_density(updation_grid.dislocation_densities[i][j], delta_strain)
                     continue
                 ret = 0
-                # cell_on_border(i, j)
-                # near_recrystallized_cell(i, j)
+                cell_on_border(i, j)
+                near_recrystallized_cell(i, j)
+    
                 avg_dis_den = np.mean(original_grid.dislocation_densities)
+                if stn >= e_cr:
+                    start_process = True
                 # if avg_dis_den >= P_cr:
                 if start_process is True:
                     # print("Upar dekho")
@@ -639,18 +651,20 @@ def main():
                     if potential_nucleus(i, j):
                         ret = update_recrystallized_cell_state(i, j)
                     if ret == 1:
-                        print("Nucleate: ", i, j)
+                        # print("Nucleate: ", i, j)
                         continue
                     # print("Niche dekho")
                     updation_grid.dislocation_densities[i][j] = update_dislocation_density(updation_grid.dislocation_densities[i][j], delta_strain)
                 else:
                     updation_grid.dislocation_densities[i][j] = update_dislocation_density(updation_grid.dislocation_densities[i][j], delta_strain)
 
+        if nucleation_happened:
+            nucleatinon_step = False
         original_grid = copy.deepcopy(updation_grid)
 
         unq, cnts = np.unique(original_grid.dynamic_recrystallization_number, return_counts=True)
         unq_array = dict(zip(unq, cnts))
-        print("updated cells: ", unq_array)
+        #print("updated cells: ", unq_array)
         difference_matrix = original_grid.dynamic_recrystallization_number - prev_grid.dynamic_recrystallization_number
         # N_unchanged_grains = difference_matrix.count(0)
         unique, counts = np.unique(difference_matrix, return_counts=True)
